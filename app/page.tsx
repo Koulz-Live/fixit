@@ -18,6 +18,22 @@ const roadmap = [
   { phase: "04", name: "Runtime assurance", weeks: "Weeks 13–16", status: "Prove", note: "Evidence, recovery, WAF/SIEM and production gates" },
 ];
 
+const gates = [
+  { id: "G1", name: "Architecture intent", owner: "Architecture Board", evidence: "Vision, scope and approved contract", state: "Ready" },
+  { id: "G2", name: "Identity & tenancy", owner: "IAM / PAM Owner", evidence: "RLS, AAL and cross-tenant negative tests", state: "Required" },
+  { id: "G3", name: "Transaction integrity", owner: "Engineering Lead", evidence: "Atomic state, idempotency and outbox tests", state: "Required" },
+  { id: "G4", name: "AI context assurance", owner: "Knowledge Steward", evidence: "Approved sources, citations and retrieval evaluation", state: "Conditional" },
+  { id: "G5", name: "Runtime evidence", owner: "Security Operations", evidence: "Telemetry, restore exercise and release evidence", state: "Required" },
+];
+
+const stack = [
+  ["Experience", "React · TypeScript", "Accessible application shell, progressive enhancement and device-local L1 cache."],
+  ["Service", "Node API facade", "Versioned contracts, controlled orchestration, stable errors and audit events."],
+  ["Authority", "Supabase", "Authentication, PostgreSQL, RLS, Storage, Realtime and pgvector."],
+  ["Knowledge", "RAG · MCP · SLM", "Permission-aware context, citations and provider-neutral model adaptation."],
+  ["Delivery", "GitHub · Vercel", "Human-reviewed changes, evidence gates and managed serverless runtime."],
+];
+
 const principles = [
   ["P01", "Business outcome first", "Every choice traces to value, capability or measurable risk reduction."],
   ["P04", "One authoritative data plane", "Supabase PostgreSQL is truth; local caches remain disposable."],
@@ -38,7 +54,7 @@ const trust = [
 export default function Home() {
   const [activeDomain, setActiveDomain] = useState(0);
   const [query, setQuery] = useState("");
-  const [panel, setPanel] = useState<"overview" | "principles" | "roadmap">("overview");
+  const [panel, setPanel] = useState<"overview" | "principles" | "controls" | "roadmap">("overview");
   const filtered = useMemo(() => principles.filter((p) => p.join(" ").toLowerCase().includes(query.toLowerCase())), [query]);
   const domain = domains[activeDomain];
 
@@ -47,7 +63,7 @@ export default function Home() {
       <header className="topbar">
         <a className="brand" href="#top" aria-label="Architecture office home"><span className="brandmark">EA</span><span>Architecture Office</span></a>
         <nav aria-label="Primary navigation">
-          {(["overview", "principles", "roadmap"] as const).map((item) => <button key={item} className={panel === item ? "nav-active" : ""} onClick={() => setPanel(item)}>{item}</button>)}
+          {(["overview", "principles", "controls", "roadmap"] as const).map((item) => <button key={item} className={panel === item ? "nav-active" : ""} onClick={() => setPanel(item)}>{item}</button>)}
         </nav>
         <div className="version"><span /> Enterprise baseline · v1.2</div>
       </header>
@@ -77,8 +93,8 @@ export default function Home() {
 
       <section id="workspace" className="workspace">
         <div className="section-head">
-          <div><span className="eyebrow">Architecture workspace</span><h2>{panel === "overview" ? "One foundation. Four connected domains." : panel === "principles" ? "Principles that shape every decision." : "A practical path to governed production."}</h2></div>
-          <p>{panel === "overview" ? "Select a domain to inspect its foundational building blocks and authority boundaries." : panel === "principles" ? "Search the core principles distilled from the enterprise reference." : "Sequence capability, control and evidence so delivery can move with confidence."}</p>
+          <div><span className="eyebrow">Architecture workspace</span><h2>{panel === "overview" ? "One foundation. Four connected domains." : panel === "principles" ? "Principles that shape every decision." : panel === "controls" ? "Release confidence comes from evidence." : "A practical path to governed production."}</h2></div>
+          <p>{panel === "overview" ? "Select a domain to inspect its foundational building blocks and authority boundaries." : panel === "principles" ? "Search the core principles distilled from the enterprise reference." : panel === "controls" ? "Inspect the enterprise gates, accountable owners and evidence expected before production." : "Sequence capability, control and evidence so delivery can move with confidence."}</p>
         </div>
 
         {panel === "overview" && <div id="architecture" className="architecture-grid">
@@ -97,7 +113,27 @@ export default function Home() {
           <div className="principle-list">{filtered.map(([id, name, text]) => <article key={id}><span>{id}</span><h3>{name}</h3><p>{text}</p><i>↗</i></article>)}</div>
         </div>}
 
+        {panel === "controls" && <div className="controls-panel">
+          <div className="readiness-strip">
+            <div><span>CONTROL POSTURE</span><strong>Evidence-led</strong></div>
+            <div><span>RELEASE GATES</span><strong>5</strong></div>
+            <div><span>ACCEPTANCE TESTS</span><strong>38</strong></div>
+            <div><span>ACCOUNTABILITY</span><strong>Human</strong></div>
+          </div>
+          <div className="gate-table">
+            <div className="gate-row gate-header"><span>Gate</span><span>Control area</span><span>Accountable owner</span><span>Minimum evidence</span><span>Status</span></div>
+            {gates.map((g) => <article className="gate-row" key={g.id}><span>{g.id}</span><strong>{g.name}</strong><span>{g.owner}</span><p>{g.evidence}</p><i className={`state-${g.state.toLowerCase()}`}>{g.state}</i></article>)}
+          </div>
+          <div className="risk-callout"><span>Release blocker rule</span><p>A critical or high finding, expired risk acceptance, unapproved deviation or untested recovery dependency prevents a production-readiness claim.</p><b>RB-01</b></div>
+        </div>}
+
         {panel === "roadmap" && <div className="roadmap-panel">{roadmap.map((r, i) => <article key={r.phase}><div className="phase-no">{r.phase}</div><div><span>{r.status}</span><h3>{r.name}</h3><p>{r.note}</p></div><strong>{r.weeks}</strong><div className="roadline"><i style={{ width: `${25 * (i + 1)}%` }} /></div></article>)}</div>}
+      </section>
+
+      <section className="stack-section">
+        <div className="stack-intro"><span className="eyebrow">Approved technology baseline</span><h2>Clear boundaries.<br />Portable building blocks.</h2><p>The stack is opinionated where consistency matters and adaptable where evidence supports a better choice.</p></div>
+        <div className="stack-list">{stack.map(([layer, tech, note], i) => <article key={layer}><span>0{i + 1}</span><div><small>{layer}</small><h3>{tech}</h3></div><p>{note}</p><i>↗</i></article>)}</div>
+        <div className="constraint-band"><span>MANAGED-SERVICE FIRST</span><i /><span>NO DJANGO</span><i /><span>NO CONTAINERS</span><i /><span>API-FIRST</span><i /><span>DENY BY DEFAULT</span></div>
       </section>
 
       <section className="guardrail">
