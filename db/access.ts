@@ -1,56 +1,26 @@
-import { env } from "cloudflare:workers";
+import { createClient } from "../lib/supabase/server";
 
 export const ROLES = ["tenant_user", "tier_1_admin", "tier_2_admin", "tier_3_admin", "manager", "executive", "auditor", "super_admin"] as const;
 export type AccessRole = typeof ROLES[number];
 
-export type AccessMember = {
-  id: string;
-  email: string;
-  displayName: string;
-  status: string;
-  role: AccessRole;
-  lastSeenAt: number;
-};
-
-function database() {
-  if (!env.DB) throw new Error("D1 binding DB is unavailable");
-  return env.DB;
-}
-
 export async function ensureAccessProfile(user: { userId: string; email: string; displayName: string }) {
-  const db = database();
-  const now = Math.floor(Date.now() / 1000);
-  const tenantId = "tenant_enterprise_architecture";
-  const membershipId = `${tenantId}:${user.userId}`;
-  const count = await db.prepare("SELECT COUNT(*) AS count FROM memberships").first<{ count: number }>();
-  const firstRole: AccessRole = Number(count?.count ?? 0) === 0 ? "super_admin" : "tenant_user";
-  await db.batch([
-    db.prepare("INSERT OR IGNORE INTO tenants (id, name, slug, status, created_at) VALUES (?, ?, ?, 'active', ?)").bind(tenantId, "Enterprise Architecture Office", "enterprise-architecture-office", now),
-    db.prepare("INSERT INTO users (id, email, display_name, status, created_at, last_seen_at) VALUES (?, ?, ?, 'active', ?, ?) ON CONFLICT(id) DO UPDATE SET email = excluded.email, display_name = excluded.display_name, last_seen_at = excluded.last_seen_at").bind(user.userId, user.email, user.displayName, now, now),
-    db.prepare("INSERT OR IGNORE INTO memberships (id, tenant_id, user_id, role, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)").bind(membershipId, tenantId, user.userId, firstRole, now, now),
-  ]);
-  return tenantId;
+  const supabase = await createClient();
+  const { data, error } = await supabase.rpc("ensure_access_profile", { p_display_name: user.displayName });
+  if (error) throw error; return String(data);
 }
 
 export async function getAccessWorkspace(userId: string, tenantId: string) {
-  const db = database();
-  const viewer = await db.prepare("SELECT m.role, t.id AS tenantId, t.name AS tenantName, t.status AS tenantStatus FROM memberships m JOIN tenants t ON t.id = m.tenant_id WHERE m.user_id = ? AND m.tenant_id = ?").bind(userId, tenantId).first<{ role: AccessRole; tenantId: string; tenantName: string; tenantStatus: string }>();
-  if (!viewer) throw new Error("Membership not found");
-  const members = await db.prepare("SELECT u.id, u.email, u.display_name AS displayName, u.status, m.role, u.last_seen_at AS lastSeenAt FROM memberships m JOIN users u ON u.id = m.user_id WHERE m.tenant_id = ? ORDER BY CASE m.role WHEN 'super_admin' THEN 1 WHEN 'executive' THEN 2 WHEN 'manager' THEN 3 ELSE 4 END, u.display_name").bind(tenantId).all<AccessMember>();
-  const audit = await db.prepare("SELECT a.id, a.action, a.from_role AS fromRole, a.to_role AS toRole, a.created_at AS createdAt, actor.display_name AS actorName, target.display_name AS targetName FROM access_audit_events a JOIN users actor ON actor.id = a.actor_user_id JOIN users target ON target.id = a.target_user_id WHERE a.tenant_id = ? ORDER BY a.created_at DESC LIMIT 8").bind(tenantId).all();
-  return { viewer, members: members.results, audit: audit.results };
+  const supabase = await createClient();
+  const { data: viewer, error: viewerError } = await supabase.from("memberships").select("role, tenant:tenants!inner(id,name,status)").eq("user_id", userId).eq("tenant_id", tenantId).single();
+  if (viewerError || !viewer) throw viewerError ?? new Error("Membership not found");
+  const { data: memberships, error: memberError } = await supabase.from("memberships").select("role,user:profiles!inner(user_id,display_name,status,last_seen_at,email)").eq("tenant_id", tenantId);
+  if (memberError) throw memberError;
+  const { data: audit, error: auditError } = await supabase.from("access_audit_events").select("id,action,from_role,to_role,created_at,actor:profiles!access_audit_events_actor_user_id_fkey(display_name),target:profiles!access_audit_events_target_user_id_fkey(display_name)").eq("tenant_id", tenantId).order("created_at", { ascending: false }).limit(8);
+  if (auditError) throw auditError;
+  const tenant = Array.isArray(viewer.tenant) ? viewer.tenant[0] : viewer.tenant;
+  return { viewer: { role: viewer.role, tenantId: tenant.id, tenantName: tenant.name, tenantStatus: tenant.status }, members: (memberships ?? []).map((m: any) => ({ id: m.user.user_id, email: m.user.email, displayName: m.user.display_name, status: m.user.status, role: m.role, lastSeenAt: Math.floor(new Date(m.user.last_seen_at).getTime()/1000) })), audit: (audit ?? []).map((a: any) => ({ id:a.id, action:a.action, fromRole:a.from_role, toRole:a.to_role, createdAt:Math.floor(new Date(a.created_at).getTime()/1000), actorName:a.actor?.display_name, targetName:a.target?.display_name })) };
 }
 
-export async function changeMemberRole(actorId: string, targetId: string, tenantId: string, role: AccessRole) {
-  const db = database();
-  const actor = await db.prepare("SELECT role FROM memberships WHERE tenant_id = ? AND user_id = ?").bind(tenantId, actorId).first<{ role: AccessRole }>();
-  if (actor?.role !== "super_admin") throw new Error("FORBIDDEN");
-  const target = await db.prepare("SELECT role FROM memberships WHERE tenant_id = ? AND user_id = ?").bind(tenantId, targetId).first<{ role: AccessRole }>();
-  if (!target) throw new Error("MEMBER_NOT_FOUND");
-  if (targetId === actorId && role !== "super_admin") throw new Error("SELF_DEMOTION_BLOCKED");
-  const now = Math.floor(Date.now() / 1000);
-  await db.batch([
-    db.prepare("UPDATE memberships SET role = ?, updated_at = ? WHERE tenant_id = ? AND user_id = ?").bind(role, now, tenantId, targetId),
-    db.prepare("INSERT INTO access_audit_events (id, tenant_id, actor_user_id, target_user_id, action, from_role, to_role, created_at) VALUES (?, ?, ?, ?, 'role.changed', ?, ?, ?)").bind(crypto.randomUUID(), tenantId, actorId, targetId, target.role, role, now),
-  ]);
+export async function changeMemberRole(_actorId: string, targetId: string, tenantId: string, role: AccessRole) {
+  const supabase = await createClient(); const { error } = await supabase.rpc("change_platform_role", { p_tenant_id: tenantId, p_target_user_id: targetId, p_role: role }); if (error) throw new Error(error.message);
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
 type Mode = "client" | "artisan";
 type Workspace = { assignments: Array<{ tenantId: string; tenantName: string; tenantType: string; roleCode: string }>; requests: Array<{ id: string; title: string; discipline: string; areaLabel: string; status: string; budgetMinMinor: number; budgetMaxMinor: number }>; featureFlags: Record<string, boolean> };
@@ -20,7 +21,7 @@ const artisanNav = ["Dashboard", "Profile", "Opportunities", "Quotes", "Clients"
 export default function MarketplaceApp({ user, signOutPath }: { user: { name: string; email: string }; signOutPath: string }) {
   const [mode, setMode] = useState<Mode>("client"); const [section, setSection] = useState("Dashboard"); const [workspace, setWorkspace] = useState<Workspace | null>(null);
   const [discipline, setDiscipline] = useState("All disciplines"); const [area, setArea] = useState(""); const [maxRate, setMaxRate] = useState(800); const [minRating, setMinRating] = useState(0); const [sort, setSort] = useState("Recommended"); const [shortlist, setShortlist] = useState<string[]>([]); const [showRequest, setShowRequest] = useState(false); const [notice, setNotice] = useState("");
-  const load = useCallback(async () => { const response = await fetch("/api/marketplace", { cache: "no-store" }); const data = await response.json(); if (!response.ok) throw new Error(data.error); setWorkspace(data); }, []);
+  const load = useCallback(async () => { const { data } = await axios.get("/api/marketplace", { headers: { "Cache-Control": "no-store" } }); setWorkspace(data); }, []);
   useEffect(() => { load().catch((e) => setNotice(e.message)); }, [load]);
   useEffect(() => { setSection("Dashboard"); }, [mode]);
   const currentTenant = workspace?.assignments.find((a) => a.roleCode === (mode === "client" ? "user_client" : "user_artisan"));

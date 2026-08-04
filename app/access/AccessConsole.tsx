@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
+import axios from "axios";
 
 type RoleKey = "tenant_user" | "tier_1_admin" | "tier_2_admin" | "tier_3_admin" | "manager" | "executive" | "auditor" | "super_admin";
 type Member = { id: string; email: string; displayName: string; status: string; role: RoleKey; lastSeenAt: number };
@@ -27,9 +28,7 @@ export default function AccessConsole({ user, signOutPath }: { user: { id: strin
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const response = await fetch("/api/access", { cache: "no-store" });
-    const data = await response.json();
-    if (!response.ok) throw new Error(data.error ?? "Unable to load access workspace");
+    const { data } = await axios.get("/api/access", { headers: { "Cache-Control": "no-store" } });
     setWorkspace(data);
   }, []);
 
@@ -39,10 +38,13 @@ export default function AccessConsole({ user, signOutPath }: { user: { id: strin
   async function updateRole(targetUserId: string, role: RoleKey) {
     if (!workspace) return;
     setBusy(true); setMessage("");
-    const response = await fetch("/api/access", { method: "PATCH", headers: { "content-type": "application/json" }, body: JSON.stringify({ tenantId: workspace.viewer.tenantId, targetUserId, role }) });
-    const data = await response.json();
-    if (!response.ok) setMessage(data.error === "SELF_DEMOTION_BLOCKED" ? "You cannot remove your own Super Admin role." : data.error);
-    else { setMessage("Role updated and recorded in the audit trail."); await load(); }
+    try {
+      await axios.patch("/api/access", { tenantId: workspace.viewer.tenantId, targetUserId, role });
+      setMessage("Role updated and recorded in the audit trail."); await load();
+    } catch (cause) {
+      const error = axios.isAxiosError(cause) ? cause.response?.data?.error ?? cause.message : "Role update failed";
+      setMessage(error === "SELF_DEMOTION_BLOCKED" ? "You cannot remove your own Super Admin role." : error);
+    }
     setBusy(false);
   }
 
