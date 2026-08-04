@@ -65,7 +65,7 @@ export default function Home() {
         <nav aria-label="Primary navigation">
           {(["overview", "principles", "controls", "roadmap"] as const).map((item) => <button key={item} className={panel === item ? "nav-active" : ""} onClick={() => setPanel(item)}>{item}</button>)}
         </nav>
-        <a className="access-link" href="/access">Access console ↗</a>
+        <a className="access-link" href="/marketplace">Open marketplace ↗</a>
         <div className="version"><span /> Enterprise baseline · v1.2</div>
       </header>
 
