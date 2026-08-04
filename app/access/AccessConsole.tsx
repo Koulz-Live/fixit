@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import axios from "axios";
+import { api } from "../../src/lib/api";
 
 type RoleKey = "tenant_user" | "tier_1_admin" | "tier_2_admin" | "tier_3_admin" | "manager" | "executive" | "auditor" | "super_admin";
 type Member = { id: string; email: string; displayName: string; status: string; role: RoleKey; lastSeenAt: number };
@@ -28,7 +29,7 @@ export default function AccessConsole({ user, signOutPath }: { user: { id: strin
   const [busy, setBusy] = useState(false);
 
   const load = useCallback(async () => {
-    const { data } = await axios.get("/api/access", { headers: { "Cache-Control": "no-store" } });
+    const { data } = await api.get("/access", { headers: { "Cache-Control": "no-store" } });
     setWorkspace(data);
   }, []);
 
@@ -39,7 +40,7 @@ export default function AccessConsole({ user, signOutPath }: { user: { id: strin
     if (!workspace) return;
     setBusy(true); setMessage("");
     try {
-      await axios.patch("/api/access", { tenantId: workspace.viewer.tenantId, targetUserId, role });
+      await api.patch("/access", { tenantId: workspace.viewer.tenantId, targetUserId, role });
       setMessage("Role updated and recorded in the audit trail."); await load();
     } catch (cause) {
       const error = axios.isAxiosError(cause) ? cause.response?.data?.error ?? cause.message : "Role update failed";
