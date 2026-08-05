@@ -52,3 +52,7 @@ Collect both Production and Preview, but apply stricter retention and alerting t
 3. Deploy the React and Vercel Function changes.
 4. Sign in as Super Admin and verify `/access` and `/security`.
 5. Configure the Vercel Log Drain and validate receipt in the SIEM.
+
+## Financial integrity
+
+Fixit Finance uses tenant-scoped, append-only double-entry journals. Supabase RPCs create all posting lines and refuse to post an unbalanced journal. OpenAI receives aggregate management-account figures only and can save draft commentary, but cannot create or alter journal entries. Management accounts remain platform-generated until an artisan or accountant explicitly reviews them.

@@ -6,6 +6,7 @@ import AccessConsole from "../app/access/AccessConsole";
 import MarketplaceApp from "../app/marketplace/MarketplaceApp";
 import LoginPage from "./LoginPage";
 import SecurityConsole from "./SecurityConsole";
+import FinanceConsole from "./FinanceConsole";
 import { supabase } from "./lib/supabase";
 
 function Protected({ user, children }: { user: User | null; children: React.ReactNode }) {
@@ -34,6 +35,7 @@ export default function App() {
     <Route path="/logout" element={<Logout />} />
     <Route path="/access" element={<Protected user={user}>{identity && <AccessConsole user={identity} signOutPath="/logout" />}</Protected>} />
     <Route path="/security" element={<Protected user={user}>{identity && <SecurityConsole user={identity} signOutPath="/logout" />}</Protected>} />
+    <Route path="/finance" element={<Protected user={user}>{identity && <FinanceConsole user={identity} signOutPath="/logout" />}</Protected>} />
     <Route path="/marketplace" element={<Protected user={user}>{identity && <MarketplaceApp user={identity} signOutPath="/logout" />}</Protected>} />
     <Route path="*" element={<Navigate to="/" replace />} />
   </Routes>;

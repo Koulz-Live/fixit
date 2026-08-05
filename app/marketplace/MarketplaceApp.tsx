@@ -37,7 +37,7 @@ export default function MarketplaceApp({ user, signOutPath }: { user: { name: st
       <a href="/" className="mp-brand"><span>F</span><strong>FIXIT</strong><small>governed marketplace</small></a>
       <div className="mode-switch" aria-label="Active role"><button className={mode === "client" ? "active" : ""} onClick={() => switchMode("client")}>Client</button><button className={mode === "artisan" ? "active" : ""} onClick={() => switchMode("artisan")}>Artisan</button></div>
       <div className="mp-tenant"><span>ACTIVE TENANT</span><strong>{currentTenant?.tenantName ?? "Preparing workspace…"}</strong><small>{mode === "client" ? "user_client" : "user_artisan"} · ZA</small></div>
-      <nav className="mp-nav">{nav.map((item, index) => <button key={item} className={section === item ? "active" : ""} onClick={() => setSection(item)}><span>{String(index + 1).padStart(2, "0")}</span>{item}{item === "Shortlist" && shortlist.length > 0 && <b>{shortlist.length}</b>}</button>)}</nav>
+      <nav className="mp-nav">{nav.map((item, index) => <button key={item} className={section === item ? "active" : ""} onClick={() => item === "Finance" ? window.location.assign("/finance") : setSection(item)}><span>{String(index + 1).padStart(2, "0")}</span>{item}{item === "Shortlist" && shortlist.length > 0 && <b>{shortlist.length}</b>}</button>)}</nav>
       <div className="mp-user"><i>{user.name.slice(0, 1).toUpperCase()}</i><span><strong>{user.name}</strong><small>{user.email}</small></span><a href={signOutPath}>↗</a></div>
     </aside>
     <section className="mp-main">
