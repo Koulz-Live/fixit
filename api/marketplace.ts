@@ -1,14 +1,18 @@
 import type { VercelRequest, VercelResponse } from "@vercel/node";
 import { requireIdentity, statusFor } from "./_supabase.js";
+import { enforceRequestPolicy, recordSecurityEvent } from "./_security.js";
 
 export default async function handler(request: VercelRequest, response: VercelResponse) {
+  const policy = enforceRequestPolicy(request, response, request.method === "POST" ? 30 : 120); if (!policy.allowed) return;
   try {
     const identity = await requireIdentity(request);
     if (request.method === "POST") {
       const body = request.body ?? {}; const title = String(body.title ?? "").trim(); const description = String(body.description ?? "").trim(); const discipline = String(body.discipline ?? ""); const areaLabel = String(body.areaLabel ?? "").trim(); const budgetMinMinor = Math.round(Number(body.budgetMin ?? 0) * 100); const budgetMaxMinor = Math.round(Number(body.budgetMax ?? 0) * 100);
       if (title.length < 5 || description.length < 10 || !areaLabel || budgetMinMinor < 0 || budgetMaxMinor < budgetMinMinor) return response.status(400).json({ error: "Please provide a valid title, description, area and budget range." });
       const { data, error } = await identity.supabase.rpc("create_service_request", { p_title: title, p_description: description, p_discipline_code: discipline, p_area_label: areaLabel, p_budget_min_minor: budgetMinMinor, p_budget_max_minor: budgetMaxMinor });
-      if (error) throw new Error(error.message); return response.status(201).json(data);
+      if (error) { await recordSecurityEvent(identity,{...policy,category:"marketplace",action:"service_request.create",severity:"medium",outcome:"failure",reasonCode:error.message}); throw new Error(error.message); }
+      await recordSecurityEvent(identity,{...policy,category:"marketplace",action:"service_request.create",outcome:"success",resourceType:"service_request",resourceId:String(data?.id??"")});
+      return response.status(201).json({...data,correlationId:policy.correlationId});
     }
     if (request.method !== "GET") return response.status(405).json({ error: "Method not allowed" });
     const { error: profileError } = await identity.supabase.rpc("ensure_access_profile", { p_display_name: identity.displayName }); if (profileError) throw profileError;

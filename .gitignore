@@ -44,3 +44,4 @@ next-env.d.ts
 /Enterprise_Greenfield_*.docx
 /outputs/
 /work/
+/supabase/.temp/

@@ -18,5 +18,5 @@ export async function requireIdentity(request: VercelRequest): Promise<ApiIdenti
 
 export function statusFor(error: unknown) {
   const message = error instanceof Error ? error.message : "Unexpected server error";
-  return { message, status: message === "AUTHENTICATION_REQUIRED" ? 401 : message === "FORBIDDEN" ? 403 : message === "SERVER_CONFIGURATION_ERROR" ? 503 : 500 };
+  return { message, status: message.includes("AUTHENTICATION_REQUIRED") ? 401 : message.includes("FORBIDDEN") ? 403 : message.includes("SERVER_CONFIGURATION_ERROR") ? 503 : 500 };
 }

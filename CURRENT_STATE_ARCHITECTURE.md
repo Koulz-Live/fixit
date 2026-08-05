@@ -42,7 +42,9 @@ flowchart LR
 
 The browser uses only the Supabase publishable key. Every API request carries the current user's short-lived access token. The Node function verifies that token with Supabase and creates a user-scoped database client, so PostgreSQL RLS remains the final authorization boundary. Service-role keys and the OpenAI key are not shipped to the browser.
 
-The access model contains eight roles: tenant user, Tier 1 admin, Tier 2 admin, Tier 3 admin, manager, executive, auditor, and super admin. Client and artisan marketplace assignments are separate tenant roles rather than administrative tiers.
+The access model deliberately does not treat tenant users as an administrative tier. Every authenticated person can hold tenant membership, while a separate platform assignment may grant one of seven tiers: Tier 1 Admin, Tier 2 Admin, Tier 3 Admin, Manager, Executive, Auditor, or Super Admin. Client and artisan marketplace assignments remain separate tenant roles.
+
+Administrative permissions are evaluated from `platform_admin_assignments` and `role_permissions`. Role changes create immutable access-audit records and structured security events. Authorized operations staff use `/security` for governed telemetry, while Vercel Firewall events and function logs are forwarded to an external SIEM through a Log Drain.
 
 ## Deployment model
 
